@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rabdul Ruckus</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee+Spice:wght@400;700&display=swap">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB, #1E90FF);
+            font-family: 'Bungee Spice', cursive;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #00FFFF;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        #dino {
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            width: 80px;
+            height: 80px;
+            transition: transform 0.5s; /* Add a transition effect for size changes */
+        }
+
+        .obstacle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+        }
+
+        #start-button,
+        #play-again-button,
+        #speed-button,
+        #rahman-mode-button,
+        #size-dec-button {
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 18px;
+            font-family: 'Bungee Spice', cursive;
+        }
+
+        .end-game-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #fff;
+        }
+
+        #website-title {
+            font-size: 32px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .score-display {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+
+        #rahman-mode-message,
+        #warning-message {
+            display: none;
+            font-size: 24px;
+            margin-top: 10px;
+        }
+
+        .play-again-button {
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 18px;
+            font-family: 'Bungee Spice', cursive;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Website title -->
+    <div id="website-title">Rabdul Ruckus</div>
+
+    <div id="game-container">
+        <!-- Replace the colored square with an image -->
+        <img id="dino" src="/Users/nathaniel/Downloads/abshir.png" alt="Dino">
+        <!-- Start button -->
+        <button id="start-button" onclick="startGame()">Start Game</button>
+        <!-- Play again button -->
+        <div id="end-game-modal" class="end-game-modal">
+            <div class="score-display" id="score">Score: 0</div>
+            <div class="score-display" id="high-score">High Score: 0</div>
+            <button class="play-again-button" onclick="playAgain()">Play Again</button>
+        </div>
+        <!-- Speed button -->
+        <button id="speed-button" onclick="increaseSpeed()">Increase Speed (B)</button>
+        <!-- Rahman Mode button -->
+        <button id="rahman-mode-button" onclick="rahmanMode()">Rahman Mode (N)</button>
+        <!-- Size decrease button -->
+        <button id="size-dec-button" onclick="decreaseSize()">Decrease Size (M)</button>
+        <!-- Rahman Mode message -->
+        <div id="rahman-mode-message">Rahman Mode Activated! Immune to meteors for 6 seconds.</div>
+        <!-- Warning message -->
+        <div id="warning-message">Warning! Meteor approaching in 2 seconds!</div>
+        <!-- Score display -->
+        <div class="score-display" id="live-score">Score: 0</div>
+        <!-- High Score display -->
+        <div class="score-display" id="live-high-score">High Score: 0</div>
+    </div>
+
+    <script>
+        const dino = document.getElementById('dino');
+        const obstacleContainer = document.getElementById('game-container');
+        const startButton = document.getElementById('start-button');
+        const playAgainButton = document.querySelector('.play-again-button');
+        const speedButton = document.getElementById('speed-button');
+        const rahmanModeButton = document.getElementById('rahman-mode-button');
+        const sizeDecButton = document.getElementById('size-dec-button');
+        const rahmanModeMessage = document.getElementById('rahman-mode-message');
+        const warningMessage = document.getElementById('warning-message');
+        const liveScoreDisplay = document.getElementById('live-score');
+        const liveHighScoreDisplay = document.getElementById('live-high-score');
+        const endGameModal = document.getElementById('end-game-modal');
+
+        let gameActive = false;
+        let rahmanModeActive = false;
+        let obstacleSpeed = 5;
+        let meteorSpeed = 5;
+        let score = 0;
+        let highScore = 0;
+        let obstacles = [];
+        let obstacleInterval;
+        let meteorInterval;
+        let meteorCooldown = false;
+
+        function jump() {
+            dino.style.bottom = '150px';
+            setTimeout(() => {
+                dino.style.bottom = '0';
+            }, 500);
+        }
+
+        function spawnObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.style.width = '40px';
+            obstacle.style.height = '40px';
+            obstacle.style.backgroundColor = '#f00';
+            obstacle.style.position = 'absolute';
+            obstacle.style.bottom = '0';
+            obstacle.style.left = '100vw';
+            obstacleContainer.appendChild(obstacle);
+            obstacles.push(obstacle);
+
+            const interval = Math.random() * (3000 - 1000) + 1000; // Random interval between 1 and 3 seconds
+            setTimeout(() => {
+                moveObstacle(obstacle);
+            }, interval);
+        }
+
+        function spawnMeteorWithWarning() {
+            if (!meteorCooldown) {
+                meteorCooldown = true;
+                setTimeout(() => {
+                    meteorCooldown = false;
+                }, 10000);
+
+                // Display warning 3 seconds before the meteor
+                setTimeout(() => {
+                    warningMessage.style.display = 'block';
+                }, 7000);
+
+                // Display meteor 10 seconds after warning
+                setTimeout(() => {
+                    warningMessage.style.display = 'none';
+                    const meteor = document.createElement('img');
+                    meteor.className = 'obstacle';
+                    meteor.src = '/Users/nathaniel/Downloads/ian.png';
+                    meteor.style.width = '40px';
+                    meteor.style.height = '40px';
+                    meteor.style.position = 'absolute';
+                    meteor.style.top = '0';
+                    meteor.style.left = Math.random() * (window.innerWidth - 40) + 'px';
+                    obstacleContainer.appendChild(meteor);
+
+                    const meteorTop = parseInt(getComputedStyle(meteor).top);
+                    moveMeteor(meteor, meteorTop, dino);
+                }, 10000);
+            }
+        }
+
+        function moveMeteor(meteor, initialTop, target) {
+            if (!gameActive) return;
+
+            const currentPosition = parseInt(getComputedStyle(meteor).top);
+            const targetPosition = parseInt(getComputedStyle(target).bottom);
+
+            // Adjust the position based on the dino's position
+            if (currentPosition < targetPosition) {
+                meteor.style.top = (currentPosition + meteorSpeed) + 'px';
+            } else {
+                meteor.style.top = (currentPosition - meteorSpeed) + 'px';
+            }
+
+            const currentLeft = parseInt(getComputedStyle(meteor).left);
+            const targetLeft = parseInt(getComputedStyle(target).left);
+
+            // Adjust the position based on the dino's horizontal position
+            if (currentLeft < targetLeft) {
+                meteor.style.left = (currentLeft + meteorSpeed) + 'px';
+            } else {
+                meteor.style.left = (currentLeft - meteorSpeed) + 'px';
+            }
+
+            if (currentPosition > window.innerHeight) {
+                meteor.remove();
+            } else {
+                checkMeteorCollision(target);
+                requestAnimationFrame(() => moveMeteor(meteor, initialTop, target));
+            }
+        }
+
+        function moveObstacle(obstacle) {
+            if (!gameActive) return;
+
+            const currentPosition = parseInt(getComputedStyle(obstacle).left);
+            obstacle.style.left = (currentPosition - obstacleSpeed) + 'px';
+
+            if (currentPosition < 0) {
+                obstacle.remove();
+                obstacles.shift(); // Remove the obstacle from the array
+                updateScore();
+            }
+
+            const dinoBottom = parseInt(getComputedStyle(dino).bottom);
+            const dinoLeft = parseInt(getComputedStyle(dino).left);
+            const obstacleLeft = parseInt(getComputedStyle(obstacle).left);
+
+            // Check for collision
+            if (
+                obstacleLeft < dinoLeft + 80 &&
+                obstacleLeft + 40 > dinoLeft &&
+                dinoBottom < 40
+            ) {
+                endGame();
+            } else {
+                requestAnimationFrame(() => moveObstacle(obstacle));
+            }
+        }
+
+        function checkMeteorCollision(target) {
+            if (rahmanModeActive) return;
+
+            const dinoBottom = parseInt(getComputedStyle(target).bottom);
+            const dinoLeft = parseInt(getComputedStyle(target).left);
+            const meteors = document.querySelectorAll('.obstacle');
+
+            meteors.forEach(meteor => {
+                const meteorLeft = parseInt(getComputedStyle(meteor).left);
+                const meteorTop = parseInt(getComputedStyle(meteor).top);
+
+                // Check for collision only if Rahman Mode is not active
+                if (
+                    !rahmanModeActive &&
+                    meteorLeft < dinoLeft + 80 &&
+                    meteorLeft + 40 > dinoLeft &&
+                    meteorTop < dinoBottom + 80 &&
+                    meteorTop + 40 > dinoBottom
+                ) {
+                    endGame();
+                }
+            });
+        }
+
+        function updateScore() {
+            score += 1;
+            liveScoreDisplay.textContent = `Score: ${score}`;
+
+            // Update high score if the current score is higher
+            if (score > highScore) {
+                highScore = score;
+                liveHighScoreDisplay.textContent = `High Score: ${highScore}`;
+            }
+        }
+
+        function startGame() {
+            gameActive = true;
+            obstacleSpeed = 5;
+            meteorSpeed = 20;
+            score = 0;
+            liveScoreDisplay.textContent = 'Score: 0';
+            liveHighScoreDisplay.textContent = `High Score: ${highScore}`;
+            startButton.style.display = 'none';
+            speedButton.style.display = 'inline-block';
+            rahmanModeButton.style.display = 'inline-block';
+            sizeDecButton.style.display = 'inline-block';
+            window.removeEventListener('keydown', startGame);
+            window.addEventListener('keydown', jump);
+            obstacles.forEach(obstacle => obstacle.remove()); // Clear existing obstacles
+            document.querySelectorAll('.obstacle').forEach(meteor => meteor.remove()); // Clear existing meteors
+            obstacles = [];
+            obstacleInterval = setInterval(spawnObstacle, 3000); // Start spawning obstacles every 3 seconds
+            meteorInterval = setInterval(spawnMeteorWithWarning, 10000); // Start spawning meteor with warning every 10 seconds
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(obstacleInterval);
+            clearInterval(meteorInterval);
+
+            // Remove all obstacles and meteors
+            obstacles.forEach(obstacle => obstacle.remove());
+            document.querySelectorAll('.obstacle').forEach(meteor => meteor.remove());
+
+            endGameModal.style.display = 'flex';
+            document.getElementById('score').textContent = `Score: ${score}`;
+            document.getElementById('high-score').textContent = `High Score: ${highScore}`;
+            playAgainButton.addEventListener('click', playAgain);
+        }
+
+        function playAgain() {
+            endGameModal.style.display = 'none';
+            playAgainButton.removeEventListener('click', playAgain);
+            startGame();
+        }
+
+        function increaseSpeed() {
+            obstacleSpeed *= 2;
+            dino.style.transform = 'scale(2)'; // Increase the dino size along with speed
+        }
+
+        function rahmanMode() {
+            rahmanModeActive = true;
+            dino.style.transform = 'scale(2)'; // Increase the dino size during Rahman Mode
+            rahmanModeMessage.style.display = 'block';
+            setTimeout(() => {
+                rahmanModeActive = false;
+                rahmanModeMessage.style.display = 'none';
+                dino.style.transform = 'scale(1)'; // Reset the dino size after Rahman Mode
+            }, 6000); // Change the duration to 6000 milliseconds (6 seconds)
+        }
+
+        function decreaseSize() {
+            dino.style.transform = 'scale(0.5)';
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                jump();
+            } else if (event.key === 'b') {
+                increaseSpeed();
+            } else if (event.key === 'n') {
+                rahmanMode();
+            } else if (event.key === 'm') {
+                decreaseSize();
+            }
+        });
+    </script>
+</body>
+
+</html>
